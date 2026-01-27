@@ -89,7 +89,7 @@ biometric-demo/
 ### Step 1: Clone the Repository
 
 ```bash
-git clone git@github.com:clean128/biometric-demo.git
+git clone https://github.com/clean128/biometric-demo.git
 cd biometric-demo
 ```
 
