@@ -1,0 +1,291 @@
+Auth Face - Biometric Authentication API
+
+API Overview
+Auth Face is a biometric authentication microservice designed to provide secure user login and identity verification through facial recognition.
+
+The API delivers a complete facial authentication flow, including face capture, liveness detection, and anti-fraud mechanisms, ensuring that only real and authorized users can access protected systems.
+
+Built for server-to-server integration, Auth Face allows platforms to start a biometric session, redirect users to a secure face capture interface, and later retrieve the authentication result using a client-provided state reference (client_state).
+
+For privacy and security, Auth Face does not store facial images. Only irreversible facial embeddings (mathematical representations of biometric features) are processed and stored, significantly reducing the risk of personal data exposure and simplifying compliance with national and international data protection regulations.
+
+Key features include facial login and identity verification, liveness detection to prevent spoofing attempts (such as photos, videos, or replays), biometric conflict detection, and session-based authentication with secure redirects. The architecture is multi-tenant, scalable, and suitable for onboarding flows, recurring logins, and high-risk actions.
+
+Auth Face is ideal for applications that require strong authentication, effective fraud prevention, and a frictionless passwordless user experience.
+
+Auth Face is a biometric authentication API that enables secure login and identity verification using facial recognition, liveness detection, and anti-fraud protection.
+
+Biometric API — Session-Based Flows & Anti-Fraud
+A comprehensive guide to implementing secure biometric authentication with built-in fraud prevention.
+
+Overview
+This API provides session-based biometric authentication with user redirection to a secure facial capture interface.
+All endpoints use HTTP POST methods.
+
+Key Features
+✅ Liveness Detection — Prevents photo/video spoofing
+✅ Duplicate Prevention (1:N) — Blocks multiple identities
+✅ Session Correlation — Secure state management via client_state
+✅ Privacy-First — No images/videos sent to client
+✅ Auto-Expiring Sessions — Single-use security tokens
+Architecture
+The API is organized into two main groups:
+
+1. Biometric Flow Endpoints
+Interactive sessions requiring facial capture with anti-fraud checks.
+
+2. Management & Control Endpoints
+Administrative operations without biometric capture or redirection.
+
+Biometric Flow Endpoints
+These endpoints initiate a biometric session and return a secure URL for facial capture.
+
+Available Endpoints
+Endpoint	Purpose	Flow Type	Requires external_user_id
+POST /biometry/v1/enroll	Register new user with duplicate check	1:N	✅ Yes
+POST /biometry/v1/verify	Authenticate existing user	1:1	✅ Yes
+POST /biometry/v1/identify	Find user in database	1:N	❌ No
+POST /biometry/v1/update_embedding	Update user's biometric data	1:1	✅ Yes
+Base Request Payload
+All biometric flow endpoints require the following core fields:
+
+{
+  "client_state": "550e8400-e29b-41d4-a716-446655440000",
+  "redirect_url": "https://client.example.com/callback"
+}
+Field Specifications
+Field	Type	Required	Description
+client_state	string (UUID v4)	✅ Yes	Unique identifier for this biometric session
+redirect_url	string (URL)	✅ Yes	Callback URL where user returns after capture
+external_user_id	string	Depends	Your internal user identifier (required for enroll/verify/update)
+Endpoint Details
+1. Enroll — Anti-Fraud Registration
+Purpose: Register a new user while preventing duplicate identities.
+
+POST /biometry/v1/enroll
+
+{
+  "client_state": "550e8400-e29b-41d4-a716-446655440000",
+  "redirect_url": "https://client.example.com/callback",
+  "external_user_id": "user_12345"
+}
+Anti-Fraud Behavior
+Before enrollment, the system performs a 1:N biometric search
+If a similar face already exists:
+❌ Enrollment is blocked
+📋 Result indicates biometric duplication
+🚨 Prevents multiple biometric identities for the same individual
+> ⚠️ Important: Enrollment is not a simple registration — it is an identity duplication prevention flow.
+
+Use Cases
+New user registration
+Account creation with biometric verification
+Anti-fraud user onboarding
+2. Verify — Facial Verification (1:1)
+Purpose: Confirm that the person matches a specific known identity.
+
+POST /biometry/v1/verify
+
+{
+  "client_state": "550e8400-e29b-41d4-a716-446655440000",
+  "redirect_url": "https://client.example.com/callback",
+  "external_user_id": "user_12345"
+}
+Behavior
+Compares the captured face against a specific user
+Used for authentication, login, or identity confirmation
+Does not search the entire database
+Use Cases
+Login authentication
+Transaction confirmation
+Identity validation before sensitive operations
+3. Identify — Facial Identification (1:N)
+Purpose: Find who the person is by searching the entire biometric database.
+
+POST /biometry/v1/identify
+
+{
+  "client_state": "550e8400-e29b-41d4-a716-446655440000",
+  "redirect_url": "https://client.example.com/callback"
+}
+Behavior
+Compares the captured face against the entire biometric database
+Does not require external_user_id
+Returns the identified user in the result
+Use Cases
+"Login with your face" (no username required)
+Access control at physical locations
+Duplicate account detection
+4. Update Embedding — Biometric Update
+Purpose: Update a user's facial biometric data while preserving history.
+
+POST /biometry/v1/update_embedding
+
+{
+  "client_state": "550e8400-e29b-41d4-a716-446655440000",
+  "redirect_url": "https://client.example.com/callback",
+  "external_user_id": "user_12345"
+}
+Behavior
+Updates the facial embedding of an existing user
+Preserves anti-fraud and duplication protection rules
+Maintains audit history
+Use Cases
+Significant appearance changes (aging, facial hair, etc.)
+Quality improvement of biometric template
+Recovery from poor initial capture
+Session Response
+All biometric endpoints return a session initialization response:
+
+{
+  "success": true,
+  "client_state": "qe94ab30-ed1b-4905-be83-5cfc6c43ae88",
+  "biometry_url": "https://facial-detection.authface.com/?t=..."
+}
+Response Fields
+Field	Type	Description
+success	boolean	Session creation status
+client_state	string	Echo of the session identifier
+biometry_url	string	Secure URL for facial capture interface
+Complete Integration Flow
+┌─────────┐                 ┌─────────┐                 ┌──────────┐
+│ Client  │                 │   API   │                 │   User   │
+└────┬────┘                 └────┬────┘                 └────┬─────┘
+     │                           │                           │
+     │ 1. POST /enroll           │                           │
+     │    (client_state,         │                           │
+     │     redirect_url)         │                           │
+     ├──────────────────────────&gt;│                           │
+     │                           │                           │
+     │ 2. Session Created        │                           │
+     │    (biometry_url)         │                           │
+     │&lt;──────────────────────────┤                           │
+     │                           │                           │
+     │ 3. Redirect user          │                           │
+     │    to biometry_url        │                           │
+     ├───────────────────────────┼──────────────────────────&gt;│
+     │                           │                           │
+     │                           │ 4. Facial Capture         │
+     │                           │    (Liveness + Anti-Fraud)│
+     │                           │&lt;──────────────────────────┤
+     │                           │                           │
+     │ 5. Redirect to callback   │                           │
+     │    redirect_url           │                           │
+     │    ?client_state=...      │                           │
+     │&lt;──────────────────────────┼───────────────────────────┤
+     │                           │                           │
+     │ 6. POST /result           │                           │
+     │    (client_state)         │                           │
+     ├──────────────────────────&gt;│                           │
+     │                           │                           │
+     │ 7. Final Result           │                           │
+     │    (success/failure +     │                           │
+     │     details)              │                           │
+     │&lt;──────────────────────────┤                           │
+     │                           │                           │
+Step-by-Step Process
+Client calls a biometric flow endpoint
+API returns biometry_url
+Client redirects the end user
+User completes facial capture (with liveness detection)
+User is redirected to: redirect_url?client_state={UUID}
+Client retrieves the final result
+
+Result Endpoint — Final Decision
+Retrieve the final outcome of any biometric session.
+
+POST /biometry/v1/result
+
+{
+  "client_state": "session-uuid"
+}
+Works for:
+enroll
+verify
+identify
+update_embedding
+Response Examples
+Successful Biometric Session (Generic)
+{
+  "success": true,
+  "state": "550e8400-e29b-41d4-a716-446655440000",
+  "flow": "identify",
+  "status": "success",
+  "event_id": "evt_123e4567-e89b-12d3-a456-426614174000",
+  "result": "success",
+  "reason": null,
+  "external_user_id": "external_user_123",
+  "score": 0.95432,
+  "completed_at": "2026-01-15 12:45:39"
+}
+Failed Biometric Session — Below Threshold
+{
+  "success": true,
+  "state": "550e8400-e29b-41d4-a716-446655440000",
+  "flow": "verify",
+  "status": "fail",
+  "event_id": "evt_abc12345-6789-4def-9012-abcdef123456",
+  "result": "fail",
+  "reason": "below_threshold",
+  "external_user_id": "external_user_123",
+  "score": 0.31245,
+  "completed_at": "2026-01-15 12:47:10"
+}
+Failed Enrollment — Biometric Conflict (1:N)
+{
+  "success": true,
+  "state": "550e8400-e29b-41d4-a716-446655440000",
+  "flow": "enroll",
+  "status": "fail",
+  "event_id": "evt_def45678-1234-4abc-9012-fedcba654321",
+  "result": "fail",
+  "reason": "conflict",
+  "external_user_id": "external_user_123",
+  "score": 0.83906,
+  "completed_at": "2026-01-15 17:44:22"
+}
+Pending / In-Progress Session (Polling)
+{
+  "success": true,
+  "state": "b12cc198-5024-4032-9b9d-505f08f80c07",
+  "flow": "verify",
+  "status": "pending",
+  "external_user_id": "external_user_123"
+}
+Notes
+success indicates that the API request was successfully processed
+(it does not represent the biometric result).
+state corresponds to the client_state provided when the session was created.
+flow indicates the biometric operation type.
+status reflects the current biometric session state
+(pending, in_progress, success, fail, expired).
+score represents the biometric confidence score (when applicable).
+Biometric internal identifiers (such as subject references) are never exposed in this endpoint.
+reason is present only when the session fails.
+Clients should poll this endpoint until status is no longer pending or in_progress.
+Management & Control Endpoints
+These endpoints do not initiate biometric sessions and do not use client_state or redirect_url.
+
+Endpoint	Purpose
+POST /biometry/v1/list-users	List enrolled users
+POST /biometry/v1/get-user	Retrieve an enrolled user
+POST /biometry/v1/delete-user	Delete a biometric user
+List Users
+POST /biometry/v1/list-users
+
+{
+  "limit": 100,
+  "offset": 0
+}
+Get User
+POST /biometry/v1/get-user
+
+{
+  "external_user_id": "user_12345"
+}
+Delete User
+POST /biometry/v1/delete-user
+
+{
+  "external_user_id": "user_12345"
+}

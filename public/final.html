@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication Result - Biometric Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div id="loading-state">
+        <div class="loading-spinner">
+          <svg class="spinner large" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4"/>
+          </svg>
+        </div>
+        <h1>Processing Result</h1>
+        <p class="subtitle">Please wait while we verify your biometric data...</p>
+      </div>
+
+      <div id="result-state" style="display: none;">
+        <div id="result-icon" class="result-icon"></div>
+        <h1 id="result-title"></h1>
+        <p id="result-message" class="subtitle"></p>
+        
+        <div id="result-details" class="result-details"></div>
+        
+        <a href="/" class="btn-secondary">Try Again</a>
+      </div>
+
+      <div id="error-state" style="display: none;">
+        <div class="result-icon error">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M15 9l-6 6M9 9l6 6"/>
+          </svg>
+        </div>
+        <h1>Error</h1>
+        <p id="error-message" class="subtitle"></p>
+        <a href="/" class="btn-secondary">Try Again</a>
+      </div>
+    </div>
+    
+    <footer>
+      Powered by <a href="https://rapidapi.com/lenzid-lenzid-default/api/auth-face-biometric-authentication-api" target="_blank">LenzId (Auth Face API)</a> – via RapidAPI
+    </footer>
+  </div>
+
+  <script>
+    const loadingState = document.getElementById('loading-state');
+    const resultState = document.getElementById('result-state');
+    const errorState = document.getElementById('error-state');
+
+    function showResult(data) {
+      loadingState.style.display = 'none';
+      resultState.style.display = 'block';
+
+      const iconDiv = document.getElementById('result-icon');
+      const titleEl = document.getElementById('result-title');
+      const messageEl = document.getElementById('result-message');
+      const detailsDiv = document.getElementById('result-details');
+
+      let icon, title, message, iconClass;
+
+      // Determine result based on flow and status
+      if (data.flow === 'enroll') {
+        if (data.status === 'success') {
+          iconClass = 'success';
+          icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>`;
+          title = 'Registration Successful!';
+          message = 'Your biometric data has been enrolled successfully.';
+        } else if (data.reason === 'conflict') {
+          iconClass = 'warning';
+          icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v4M12 17h.01"/>
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>`;
+          title = 'Enrollment Blocked';
+          message = 'A user with this face already exists in the system.';
+        } else {
+          iconClass = 'error';
+          icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M15 9l-6 6M9 9l6 6"/>
+          </svg>`;
+          title = 'Registration Failed';
+          message = data.reason || 'Unable to complete biometric enrollment.';
+        }
+      } else if (data.flow === 'verify') {
+        if (data.status === 'success') {
+          iconClass = 'success';
+          icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>`;
+          title = 'Legitimate Client';
+          message = 'Identity verified successfully!';
+        } else {
+          iconClass = 'error';
+          icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M15 9l-6 6M9 9l6 6"/>
+          </svg>`;
+          title = 'Verification Failed';
+          message = 'The face does not match the registered user.';
+        }
+      } else {
+        // Unknown flow or pending
+        iconClass = 'info';
+        icon = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4M12 8h.01"/>
+        </svg>`;
+        title = 'Status: ' + (data.status || 'Unknown');
+        message = 'Flow: ' + (data.flow || 'Unknown');
+      }
+
+      iconDiv.className = `result-icon ${iconClass}`;
+      iconDiv.innerHTML = icon;
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+
+      // Build details section
+      let detailsHtml = '<div class="details-grid">';
+      
+      if (data.external_user_id) {
+        detailsHtml += `<div class="detail-item"><span class="label">User ID:</span><span class="value">${data.external_user_id}</span></div>`;
+      }
+      
+      if (data.flow) {
+        detailsHtml += `<div class="detail-item"><span class="label">Flow:</span><span class="value">${data.flow}</span></div>`;
+      }
+      
+      if (data.score !== undefined && data.score !== null) {
+        const scorePercent = (data.score * 100).toFixed(2);
+        detailsHtml += `<div class="detail-item"><span class="label">Confidence Score:</span><span class="value">${scorePercent}%</span></div>`;
+      }
+      
+      if (data.completed_at) {
+        detailsHtml += `<div class="detail-item"><span class="label">Completed:</span><span class="value">${data.completed_at}</span></div>`;
+      }
+      
+      detailsHtml += '</div>';
+      detailsDiv.innerHTML = detailsHtml;
+    }
+
+    function showError(message) {
+      loadingState.style.display = 'none';
+      errorState.style.display = 'block';
+      document.getElementById('error-message').textContent = message;
+    }
+
+    async function fetchResult() {
+      // Get client_state from URL
+      const params = new URLSearchParams(window.location.search);
+      const client_state = params.get('client_state');
+
+      if (!client_state) {
+        showError('No session ID found. Please start a new authentication.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/get-result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_state })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch result');
+        }
+
+        // Check if still pending - poll again
+        if (data.status === 'pending' || data.status === 'in_progress') {
+          setTimeout(fetchResult, 2000); // Poll every 2 seconds
+          return;
+        }
+
+        showResult(data);
+
+      } catch (error) {
+        console.error('Error:', error);
+        showError(error.message || 'Failed to retrieve authentication result.');
+      }
+    }
+
+    // Start fetching result when page loads
+    fetchResult();
+  </script>
+</body>
+</html>

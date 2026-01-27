@@ -1,0 +1,209 @@
+📋 About the Project
+
+We need a developer to create a demo application that integrates the LenzId facial biometrics API (Auth Face API) via RapidAPI.
+
+Link: https://rapidapi.com/lenzid-lenzid-default/api/auth-face-biometric-authentication-api
+
+The goal is to implement a simple and functional biometric registration and verification flow, where the application automatically decides which action to perform based on the user's status.
+
+🎯 Main Objective
+
+Create a local application that:
+
+Allows the user to enter only one identifier (external_user_id)
+
+Automatically checks if they are already registered
+
+Directs to biometric registration or facial verification
+
+Displays the final result of the operation
+
+🛠️ Supported Technologies
+
+You can choose from:
+
+- Node.js
+- Python
+- PHP
+- C# (.NET Core)
+- Java (Spring Boot or similar)
+
+The application must run locally (localhost).
+
+🔄 Expected Functional Flow
+Step 1: User Input
+
+User enters their external_user_id (e.g., "João")
+
+Step 2: Automatic Status Verification
+
+Endpoint:
+
+POST /wp-json/biometry/v1/users/get
+
+Scenario A — User NOT registered (404)
+{
+"success": false,
+
+"error": "external_user_not_found"
+
+}
+
+➡️ Application starts biometric registration:
+
+POST /wp-json/biometry/v1/enroll
+
+Scenario B — User ALREADY registered (200)
+{
+"success": true,
+
+"user": {
+"external_user_id": "João",
+
+"status": "enrolled"
+
+}
+}
+
+➡️ Application starts facial verification:
+
+POST Step 3: Redirecting to Biometric Capture
+
+Both enroll and verify follow the same pattern.
+
+Before starting any flow, the application must generate a new UUID, which will be used as client_state.
+
+Request:
+
+{
+"external_user_id": "João",
+
+"redirect_url": "http://localhost:3000/final",
+
+"client_state": "uuid-generated-by-the-application"
+
+}
+
+API Response:
+
+{
+"success": true,
+
+"client_state": "ee94ab30-ed1b-4905-be83-5cfc6c43ae99",
+
+"biometry_url": "https://auth.lenzid.com/?t=..."
+
+}
+
+✅ The application should automatically redirect the user to the biometry_url
+
+Important:
+
+The client_state must be a new UUID for each flow initiated.
+
+This UUID will be reused to query the final result.
+
+Step 4: Automatic Return
+
+After the biometric process, the user automatically returns. To:
+
+http://localhost:3000/final?client_state=YOUR_UUID_HERE
+
+Step 5: Querying the Final Result
+
+Endpoint:
+
+POST /wp-json/biometry/v1/result
+
+Use the client_state received in the URL to query the result.
+
+Expected final display:
+
+✅ Verify approved → “Legitimate client”
+
+❌ Verify failed → “Verification failed”
+
+⚠️ Enroll conflict → “A user with this face already exists”
+
+✅ Mandatory Technical Requirements
+
+Endpoints:
+
+users/get — verify if user exists
+
+enroll — biometric registration
+
+verify — facial verification
+
+result — final result
+
+Conflict Handling (Enroll)
+
+When the face already belongs to another user:
+
+{
+"success": true,
+
+"flow": "enroll",
+
+"status": "fail",
+
+"reason": "conflict",
+
+"external_user_id": "user1234",
+
+"score": 0.882876
+
+}
+
+➡️ Display appropriate message to the user.
+
+Security
+
+Mandatory use of environment variables (.env)
+
+RapidAPI key cannot be versioned
+
+.env must be in .gitignore
+
+📦 Deliverables
+
+Public repository on GitHub containing:
+
+1. Complete and functional code
+
+Application running locally
+
+Complete flow: enroll → result and verify → result
+
+2. Detailed README.md with:
+
+Explanation of the implemented flow
+
+Endpoints used
+
+How to run locally
+
+.env configuration
+
+How to obtain the key in RapidAPI
+
+Mandatory phrase:
+
+“Powered by LenzId (Auth Face API) – via RapidAPI”
+
+3. .env.example file
+
+With necessary variables (without real values)
+
+❌ What is NOT necessary:
+
+Elaborate visual interface
+
+Online deployment
+
+Production
+
+Maintenance after delivery
+
+Automated tests (optional)
