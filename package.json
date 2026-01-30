@@ -8,7 +8,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "generate-certs": "node generate-certs.js",
+    "tunnel": "npx localtunnel --port 3000"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

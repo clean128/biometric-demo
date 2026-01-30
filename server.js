@@ -7,15 +7,33 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { getUser, enrollUser, verifyUser, getResult } = require('./utils/api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 // Middleware
 app.use(express.json());
+
+// Add security headers for camera/media access on mobile
+app.use((req, res, next) => {
+  // Permissions Policy for camera access
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*');
+  
+  // Allow cross-origin for biometry redirects
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store session info temporarily (in production, use Redis or database)
@@ -162,15 +180,42 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Check if SSL certificates exist for HTTPS
+const sslKeyPath = path.join(__dirname, 'certs', 'key.pem');
+const sslCertPath = path.join(__dirname, 'certs', 'cert.pem');
+const hasSSL = fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath);
+
+// Start HTTP server
+http.createServer(app).listen(PORT, () => {
   console.log(`\n🔐 Biometric Authentication Demo`);
   console.log(`   Powered by LenzId (Auth Face API) – via RapidAPI\n`);
-  console.log(`   Server running at: ${BASE_URL}`);
-  console.log(`   Callback URL: ${BASE_URL}/final\n`);
+  console.log(`   HTTP Server: http://localhost:${PORT}`);
   
   if (!process.env.RAPIDAPI_KEY) {
-    console.warn('⚠️  Warning: RAPIDAPI_KEY not set in environment variables!');
+    console.warn('\n⚠️  Warning: RAPIDAPI_KEY not set in environment variables!');
     console.warn('   Please create a .env file with your RapidAPI key.\n');
   }
 });
+
+// Start HTTPS server if certificates exist
+if (hasSSL) {
+  const sslOptions = {
+    key: fs.readFileSync(sslKeyPath),
+    cert: fs.readFileSync(sslCertPath)
+  };
+  
+  https.createServer(sslOptions, app).listen(HTTPS_PORT, () => {
+    console.log(`   HTTPS Server: https://localhost:${HTTPS_PORT}`);
+    console.log(`\n📱 For mobile testing, use HTTPS URL or ngrok/localtunnel`);
+  });
+} else {
+  console.log(`\n📱 Mobile Camera Access:`);
+  console.log(`   Mobile browsers require HTTPS for camera access.`);
+  console.log(`   Options:`);
+  console.log(`   1. Use ngrok: npx ngrok http ${PORT}`);
+  console.log(`   2. Use localtunnel: npx localtunnel --port ${PORT}`);
+  console.log(`   3. Generate SSL certs: npm run generate-certs`);
+  console.log(`\n   Then update BASE_URL in .env to the HTTPS URL.`);
+}
+
+console.log(`\n   Callback URL: ${BASE_URL}/final\n`);
